@@ -1,2 +1,2 @@
-# LTW
-repo of subject LTW
+# LTM
+repo of subject LTM
