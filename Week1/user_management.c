@@ -54,7 +54,7 @@ LL readFile(LL head){ // read info from file to linklist
         c = fgetc(pt);
     }
     fclose(pt);
-    LL p = head;
+    // LL p = head;
     // for(p = head; p != NULL; p = p->next){
     //     printf("%s\n", p->data.username);
     // }
