@@ -160,7 +160,7 @@ LL Logout(LL head){
     scanf("%s", data.username);
     LL temp = check_acc(head, data.username);
     if(temp == NULL){
-        printf("Can't not find account\n");
+        printf("Can not find account\n");
     }
     else if(user == NULL || strcmp(user->data.username, temp->data.username) != 0){
         printf("Account is not sign in\n");
