@@ -1,3 +1,12 @@
 {
-    "C_Cpp.errorSquiggles": "Enabled"
+    "C_Cpp.errorSquiggles": "Enabled",
+    "files.associations": {
+        "in.h": "c",
+        "socket.h": "c",
+        "types.h": "c",
+        "netdb.h": "c",
+        "inet.h": "c",
+        "unistd.h": "c",
+        "errno.h": "c"
+    }
 }
