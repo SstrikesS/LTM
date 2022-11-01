@@ -74,11 +74,13 @@ int main(int argc, char const *argv[]){
         memset(string, '\0', sizeof(string));
         length = sizeof(client_tmp);
         buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &client_tmp, &length);
+        buffer[buff_size] = '\0';
         check = check_input(buffer, number, string);
         host = gethostbyaddr((const char *)&client_tmp.sin_addr.s_addr, sizeof(client_tmp.sin_addr.s_addr), AF_INET);
         host_addr = inet_ntoa(client_tmp.sin_addr);
         printf("Succeed recieved message from %s [ip %s, port %d]: %s\n", host->h_name, host_addr, client_tmp.sin_port ,buffer);
         printf("-----------------------------------------------------\n");
+        printf("%s\n", buffer);
         printf("%d\n", check);
         printf("%ld %ld\n", strlen(number), strlen(string));
         if(strcmp(host_addr, inet_ntoa(client_addr_1.sin_addr)) == 0 && client_addr_1.sin_port == client_tmp.sin_port){
