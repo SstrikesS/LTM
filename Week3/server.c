@@ -8,6 +8,22 @@
 #include <netdb.h>
 
 #define MAX 100
+int check_input(char *input, char *number, char *string){
+    int i;
+    int j = 0;
+    int k = 0;
+    for(i = 0; i < strlen(input) - 1; i++){
+        if(input[i] >= '0' && input[i] <= '9'){
+            number[j++] = input[i];
+        }else if((input[i] >= 'a' && input[i] <= 'z') || (input[i] >= 'A' && input[i] <= 'Z')){
+            string[k++] = input[i];
+        }else{
+            return 1; // check failed
+        }
+    }
+    return 0; // check succeed
+}
+
 int main(int argc, char const *argv[]){
     
     if(argc < 2 ){
@@ -23,7 +39,10 @@ int main(int argc, char const *argv[]){
     char *buffer = (char *)malloc(sizeof(char) * MAX);
     struct hostent *host;
     char *host_addr;
-
+    char *number = (char *)malloc(sizeof(char) * MAX);
+    char *string = (char *)malloc(sizeof(char) * MAX);
+    char *error = "Error"; 
+    int check;
     if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
         perror("Socket creation failed!\n");
         exit(EXIT_FAILURE);
@@ -47,24 +66,37 @@ int main(int argc, char const *argv[]){
 
     length = sizeof(client_addr_1);
     buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &client_addr_1, &length);
-
     length = sizeof(client_addr_2);
     buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &client_addr_2, &length);
-
     while (1){
-        buffer[0] = '\0';
+        memset(buffer, '\0', sizeof(buffer));
+        memset(number, '\0', sizeof(number));
+        memset(string, '\0', sizeof(string));
         length = sizeof(client_tmp);
         buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &client_tmp, &length);
-        buffer[buff_size] = '\0';
+        check = check_input(buffer, number, string);
         host = gethostbyaddr((const char *)&client_tmp.sin_addr.s_addr, sizeof(client_tmp.sin_addr.s_addr), AF_INET);
         host_addr = inet_ntoa(client_tmp.sin_addr);
-        printf("Succeed recieved message from %s [ip %s]: %s\n", host->h_name, host_addr, buffer);
+        printf("Succeed recieved message from %s [ip %s, port %d]: %s\n", host->h_name, host_addr, client_tmp.sin_port ,buffer);
         printf("-----------------------------------------------------\n");
-        if(strcmp(host_addr, inet_ntoa(client_addr_1.sin_addr)) != 0){
-            sendto(sockfd, (char *)buffer, strlen(buffer), MSG_CONFIRM, (const struct sockaddr *) &client_addr_1, sizeof(client_addr_1));
+        printf("%d\n", check);
+        printf("%ld %ld\n", strlen(number), strlen(string));
+        if(strcmp(host_addr, inet_ntoa(client_addr_1.sin_addr)) == 0 && client_addr_1.sin_port == client_tmp.sin_port){
+            if(check == 0){
+                sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (const struct sockaddr *) &client_addr_2, sizeof(client_addr_2));
+                sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (const struct sockaddr *) &client_addr_2, sizeof(client_addr_2));
+            }else{
+                sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (const struct sockaddr *) &client_addr_2, sizeof(client_addr_2));
+            }        
         }else{
-            sendto(sockfd, (char *)buffer, strlen(buffer), MSG_CONFIRM, (const struct sockaddr *) &client_addr_2, sizeof(client_addr_2));
+            if(check == 0){
+                sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (const struct sockaddr *) &client_addr_1, sizeof(client_addr_1));
+                sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (const struct sockaddr *) &client_addr_1, sizeof(client_addr_1));
+            }else{
+                sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (const struct sockaddr *) &client_addr_1, sizeof(client_addr_1));
+            }
         }
     }
+    close(sockfd);
     return 0;
 }
