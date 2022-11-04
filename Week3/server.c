@@ -80,9 +80,9 @@ int main(int argc, char const *argv[]){
         host_addr = inet_ntoa(client_tmp.sin_addr);
         printf("Succeed recieved message from %s [ip %s, port %d]: %s\n", host->h_name, host_addr, client_tmp.sin_port ,buffer);
         printf("-----------------------------------------------------\n");
-        printf("%s\n", buffer);
-        printf("%d\n", check);
-        printf("%ld %ld\n", strlen(number), strlen(string));
+        // printf("%s\n", buffer);
+        // printf("%d\n", check);
+        // printf("%ld %ld\n", strlen(number), strlen(string));
         if(strcmp(host_addr, inet_ntoa(client_addr_1.sin_addr)) == 0 && client_addr_1.sin_port == client_tmp.sin_port){
             if(check == 0){
                 sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (const struct sockaddr *) &client_addr_2, sizeof(client_addr_2));
