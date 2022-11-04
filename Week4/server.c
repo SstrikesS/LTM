@@ -197,6 +197,7 @@ char* check_login(llist *acc_list, Data data){ // check username, password, stat
     }
     return "Invalid account";
 }
+
 void changePass(llist *acc_list, Data data){
     struct node * current = *acc_list;
     while(current != NULL){
@@ -222,11 +223,9 @@ struct sockaddr_in Login(llist *acc_list){ // Receive username, password from cl
 
     buff_size = recvfrom(sockfd, (char *)data.username, MAX, MSG_WAITALL, (struct sockaddr *) &client_tmp, &length);
     data.username[buff_size] = '\0';
-    printf("%s\n", data.username);
 
     buff_size = recvfrom(sockfd, (char *)data.password, MAX, MSG_WAITALL, (struct sockaddr *) &client_tmp, &length);
     data.password[buff_size] = '\0';
-    printf("%s\n", data.password);
 
     data.client.sin_addr = client_tmp.sin_addr;
     data.client.sin_family = client_tmp.sin_family;
@@ -240,19 +239,19 @@ struct sockaddr_in Login(llist *acc_list){ // Receive username, password from cl
         client_tmp = Login(acc_list);
     }
 
-    buff_size = recvfrom(sockfd, (char *)data.password, MAX, MSG_WAITALL, (struct sockaar *) &client_tmp, &length);
-    data.password[buff_size] = '\0';
-    char *number = (char *)malloc(sizeof(char) * MAX);
-    char *string = (char *)malloc(sizeof(char) * MAX);
-    char *error = "ERROR";
-    int check = check_input(data.password, number, string);
-    if(check == 0){
-        changePass(acc_list, data);
-        sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
-        sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
-    }else{
-        sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
-    }  
+    // buff_size = recvfrom(sockfd, (char *)data.password, MAX, MSG_WAITALL, (struct sockaar *) &client_tmp, &length);
+    // data.password[buff_size] = '\0';
+    // char *number = (char *)malloc(sizeof(char) * MAX);
+    // char *string = (char *)malloc(sizeof(char) * MAX);
+    // char *error = "ERROR";
+    // int check = check_input(data.password, number, string);
+    // if(check == 0){
+    //     changePass(acc_list, data);
+    //     sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
+    //     sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
+    // }else{
+    //     sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
+    // }  
     return client_tmp;
 }
 

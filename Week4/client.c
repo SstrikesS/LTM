@@ -14,29 +14,33 @@ struct sockaddr_in server_addr;
 
 void mess_handle(){
     char *buffer = (char*)malloc(sizeof(char) * MAX);
-    char *messagge = (char *)malloc(sizeof(char) * MAX);
+    char *message = (char *)malloc(sizeof(char) * MAX);
+    int buff_size = 0;
     int length;
     do{
         memset(buffer, '\0', sizeof(buffer));
-        memset(messagge, '\0', sizeof(messagge));
+        memset(message, '\0', sizeof(message));
         printf("Input message: ");
         fflush(stdin);
         scanf("%s", buffer);
         printf("------------------------------------\n");
+
+        sendto(sockfd, (char *)buffer, strlen(buffer), MSG_CONFIRM, (const struct sockaddr *) &server_addr, sizeof(server_addr));
+        length = sizeof(server_addr);
         if(strcmp(buffer, "bye") == 0){
             exit(1);
         }
-        sendto(sockfd, (char *)buffer, strlen(buffer), MSG_CONFIRM, (const struct sockaddr *) &server_addr, sizeof(server_addr));
-        length = sizeof(server_addr);
-        recvfrom(sockfd, (char *)messagge, MAX, MSG_WAITALL, (struct sockaddr *) &server_addr, &length);
-        if(strlen(messagge) > 0){
-            printf("Message from other client: %s\n", messagge);
+        buff_size = recvfrom(sockfd, (char *)message, MAX, MSG_WAITALL, (struct sockaddr *) &server_addr, &length);
+        message[buff_size] = '\0';
+        if(strlen(message) > 0){
+            printf("Message from other client: %s\n", message);
         }
-        if(strcmp(messagge, "Error") != 0){
-            memset(messagge, '\0', sizeof(messagge));
-            recvfrom(sockfd, (char *)messagge, MAX, MSG_WAITALL, (struct sockaddr *) &server_addr, &length);
-            if(strlen(messagge) > 0){
-                printf("Message from other client: %s\n", messagge);
+        if(strcmp(message, "Error") != 0){
+            memset(message, '\0', sizeof(message));
+            buff_size = recvfrom(sockfd, (char *)message, MAX, MSG_WAITALL, (struct sockaddr *) &server_addr, &length);
+            message[buff_size] = '\0';
+            if(strlen(message) > 0){
+                printf("Message from other client: %s\n", message);
             }
         }
         
@@ -76,26 +80,26 @@ void Login(){
     buffer[buff_size] = '\0';
     printf("%s\n", buffer);
     if(strcmp(buffer, "OK") == 0){
-        do{
-            memset(buffer, '\0', sizeof(buffer));
-            printf("Enter new password: (Must be different 'bye')");
-            fflush(stdin);
-            scanf("%s", buffer);
-        }while(strcmp(buffer , "bye") == 0);
-        sendto(sockfd, (char *)buffer, strlen(buffer), MSG_CONFIRM, (struct sockaddr *) &server_addr, length);
-        memset(buffer, '\0', sizeof(buffer));
-        buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &server_addr, &length);
-        buffer[buff_size] = '\0';
-        if(strcmp(buffer, "ERROR") == 0){
-            printf("Change password fail\n");
-        }else{
-            printf("Receive from server : %s", buffer);
-            memset(buffer, '\0', sizeof(buffer));
-            buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &server_addr, &length);
-            buffer[buff_size] = '\0';
-            printf(" and %s\n", buffer);
-        }
-        mess_handle();
+        // memset(buffer, '\0', sizeof(buffer));
+        // printf("Enter new password (Must be different 'bye'): ");
+        // fflush(stdin);
+        // scanf("%s", buffer);
+        // if(strcmp(buffer , "bye") == 0){
+        //     exit(1);
+        // }
+        // sendto(sockfd, (char *)buffer, strlen(buffer), MSG_CONFIRM, (struct sockaddr *) &server_addr, length);
+        // memset(buffer, '\0', sizeof(buffer));
+        // buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &server_addr, &length);
+        // buffer[buff_size] = '\0';
+        // if(strcmp(buffer, "ERROR") == 0){
+        //     printf("Change password fail\n");
+        // }else{
+        //     printf("Receive from server : %s", buffer);
+        //     memset(buffer, '\0', sizeof(buffer));
+        //     buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &server_addr, &length);
+        //     buffer[buff_size] = '\0';
+        //     printf(" and %s\n", buffer);
+        // }
     }else{
         Login();
     }
@@ -111,6 +115,7 @@ int main(int argc, char const *argv[]){
    
     setupClient(argv[1], port);
     Login();
+    mess_handle();
     close(sockfd);
     return 0;
 }
