@@ -258,7 +258,7 @@ struct sockaddr_in Login(llist *acc_list){ // Receive username, password from cl
             sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
             sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
         }else{
-            printf("User %s, changes password fail!\n");
+            printf("User %s, changes password fail!\n", data.username);
             sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
         }  
     }
