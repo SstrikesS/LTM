@@ -18,6 +18,12 @@ typedef struct Data{
     struct sockaddr_in client;
 }Data;
 
+typedef struct Message{
+    char username[MAX];
+    char string[MAX];
+    char number[MAX];
+}Message;
+
 struct sockaddr_in server_addr, client_addr_1 , client_addr_2;
 struct hostent *host;
 int sockfd;
@@ -39,7 +45,6 @@ int check_input(char *input, char *number, char *string){// check message from c
     string[k] = '\0';
     return 0; // check succeed
 }
-
 void setupServer(int port){ // setup Server port and IP
     if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
         perror("Socket creation failed!\n");
@@ -75,46 +80,48 @@ char *getNameClient(llist *acc_list, struct sockaddr_in client_tmp){ // get clie
 
 void mess_handle(llist *acc_list){ // manage message from 2 client
     struct sockaddr_in client_tmp;
+    Message buffer;
+    Message message;
     memset(&client_tmp, 0, sizeof(client_tmp));
     int length, check;
-    char *buffer = (char *)malloc(sizeof(char) * MAX);
-    char *number = (char *)malloc(sizeof(char) * MAX);
-    char *string = (char *)malloc(sizeof(char) * MAX);
-    char *error = "Error"; 
+    Message error;
+    strcpy(error.string, "Error");
     char *host_addr;
     int buff_size = 0;
     while(1){
-        memset(buffer, '\0', sizeof(buffer));
-        memset(number, '\0', sizeof(number));
-        memset(string, '\0', sizeof(string));
-
+        memset(&buffer, 0, sizeof(buffer));
+        memset(&message, 0, sizeof(message));
         length = sizeof(client_tmp);
-        buff_size = recvfrom(sockfd, (char *)buffer, MAX, MSG_WAITALL, (struct sockaddr *) &client_tmp, &length);
-        buffer[buff_size] = '\0';
-        check = check_input(buffer, number, string);
+        buff_size = recvfrom(sockfd, (Message *)&buffer, sizeof(Message), MSG_WAITALL, (struct sockaddr *) &client_tmp, &length);
+        if(buff_size != sizeof(Message)){
+            printf("Error!\n");
+        }
+        check = check_input(buffer.string, message.number, message.string);
         host = gethostbyaddr((const char *)&client_tmp.sin_addr.s_addr, sizeof(client_tmp.sin_addr.s_addr), AF_INET);
         host_addr = inet_ntoa(client_tmp.sin_addr);
         char *client_name = getNameClient(acc_list, client_tmp);
-        printf("Message from %s [ip %s, port %d]: %s\n", client_name, host_addr, client_tmp.sin_port ,buffer);
+        strcpy(message.username, client_name); 
+        strcpy(error.username, client_name);
+        printf("Message from %s [ip %s, port %d]: %s\n", client_name, host_addr, client_tmp.sin_port ,buffer.string);
         printf("-----------------------------------------------------\n");
-        // printf("%d\n", check);
-        // printf("%ld %ld %ld\n", strlen(number), strlen(string), strlen(buffer));
-        if(strcmp(buffer, "bye") == 0){
+        if(strcmp(buffer.string, "bye") == 0){
             printf("Goodbye %s\n", client_name);
         }
         if(strcmp(host_addr, inet_ntoa(client_addr_1.sin_addr)) == 0 && client_addr_1.sin_port == client_tmp.sin_port){
             if(check == 0){
-                sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (const struct sockaddr *) &client_addr_2, sizeof(client_addr_2));
-                sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (const struct sockaddr *) &client_addr_2, sizeof(client_addr_2));
+                write(sockfd, &message, sizeof(Message));
+                sendto(sockfd, (Message*)&message, sizeof(Message), MSG_CONFIRM, (struct sockaddr *) &client_addr_2 , sizeof(client_addr_2));
             }else{
-                sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (const struct sockaddr *) &client_addr_2, sizeof(client_addr_2));
+                write(sockfd, &error, sizeof(Message));
+                sendto(sockfd, (Message*)&error, sizeof(Message), MSG_CONFIRM, (struct sockaddr *) &client_addr_2 , sizeof(client_addr_2));
             }        
         }else{
             if(check == 0){
-                sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (const struct sockaddr *) &client_addr_1, sizeof(client_addr_1));
-                sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (const struct sockaddr *) &client_addr_1, sizeof(client_addr_1));
+                write(sockfd, &message, sizeof(Message));
+                sendto(sockfd, (Message*)&message, sizeof(Message), MSG_CONFIRM, (struct sockaddr *) &client_addr_1 , sizeof(client_addr_1));
             }else{
-                sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (const struct sockaddr *) &client_addr_1, sizeof(client_addr_1));
+                write(sockfd, &error, sizeof(Message));
+                sendto(sockfd, (Message*)&error, sizeof(Message), MSG_CONFIRM, (struct sockaddr *) &client_addr_1 , sizeof(client_addr_1));
             }
         }
     }
@@ -166,7 +173,6 @@ void readFlie(llist *acc_list){ // read info from file account.txt
         }
         c = fgetc(pt);
     }
-    //print_llist(acc_list, print_data);
     fclose(pt);
 }
 
@@ -226,7 +232,8 @@ struct sockaddr_in Login(llist *acc_list){ // Receive username, password from cl
 
     buff_size = recvfrom(sockfd, (char *)data.password, MAX, MSG_WAITALL, (struct sockaddr *) &client_tmp, &length);
     data.password[buff_size] = '\0';
-
+        
+    
     data.client.sin_addr = client_tmp.sin_addr;
     data.client.sin_family = client_tmp.sin_family;
     data.client.sin_port = client_tmp.sin_port;
@@ -238,20 +245,23 @@ struct sockaddr_in Login(llist *acc_list){ // Receive username, password from cl
     if(strcmp(message, "OK") != 0){
         client_tmp = Login(acc_list);
     }
-
-    // buff_size = recvfrom(sockfd, (char *)data.password, MAX, MSG_WAITALL, (struct sockaar *) &client_tmp, &length);
-    // data.password[buff_size] = '\0';
-    // char *number = (char *)malloc(sizeof(char) * MAX);
-    // char *string = (char *)malloc(sizeof(char) * MAX);
-    // char *error = "ERROR";
-    // int check = check_input(data.password, number, string);
-    // if(check == 0){
-    //     changePass(acc_list, data);
-    //     sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
-    //     sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
-    // }else{
-    //     sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
-    // }  
+    else{
+        buff_size = recvfrom(sockfd, (char *)data.password, MAX, MSG_WAITALL, (struct sockaddr *) &client_tmp, &length);
+        data.password[buff_size] = '\0';
+        char *number = (char *)malloc(sizeof(char) * MAX);
+        char *string = (char *)malloc(sizeof(char) * MAX);
+        char *error = "Error";
+        int check = check_input(data.password, number, string);
+        if(check == 0){
+            changePass(acc_list, data);
+            printf("User %s changes password succeed!\n", data.username);
+            sendto(sockfd, (char *)string, strlen(string), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
+            sendto(sockfd, (char *)number, strlen(number), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
+        }else{
+            printf("User %s, changes password fail!\n");
+            sendto(sockfd, (char *)error, strlen(error), MSG_CONFIRM, (struct sockaddr *) &client_tmp, length);
+        }  
+    }
     return client_tmp;
 }
 
