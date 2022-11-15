@@ -52,19 +52,21 @@ void send_recv_mess(){
         recv(sockfd, (int *)&string_length, sizeof(string_length), 0);
         buffer_size = recv(sockfd, buffer, MAX_CHAR, 0);
         buffer[buffer_size] = '\0';
-        for(i = 0; i < buffer_size; i++){
-            if(i < string_length){
-                string[i] = buffer[i];
-            }else{
-                number[i - string_length] = buffer[i];
+        if(strcmp(buffer, "Error") == 0 || string_length == -1){
+            printf("Message from server: %s\n", buffer);
+        }else{
+            for(i = 0; i < buffer_size; i++){
+                if(i < string_length){
+                    string[i] = buffer[i];
+                }else{
+                    number[i - string_length] = buffer[i];
+                }
             }
-        }
-        number[buffer_size - string_length] ='\0';
-        string[string_length] = '\0';
-        if(strlen(buffer) > 0){
-            printf("Message from server: %s\n", string);
-        }
-        if(strcmp(string, "Error") != 0){
+            number[buffer_size - string_length] ='\0';
+            string[string_length] = '\0';
+            if(strlen(buffer) > 0){
+                printf("Message from server: %s\n", string);
+            }
             if(strlen(number) > 0){
                 printf("Message from server: %s\n", number);
             }

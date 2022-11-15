@@ -24,7 +24,7 @@ int check_input(char *input, char *number, char *string){// check message from c
         }else if((input[i] >= 'a' && input[i] <= 'z') || (input[i] >= 'A' && input[i] <= 'Z')){
             string[k++] = input[i];
         }else{
-            return 1; // check failed
+            return -1; // check failed
         }
     }
     number[j] ='\0';
@@ -45,19 +45,20 @@ void send_recv_message(){
         bzero(number, MAX_CHAR);
         bzero(string, MAX_CHAR);
         buffer_size = recv(conndf, buffer, MAX_CHAR, 0);
-        buffer[buffer_size = '\0'];
+        buffer[buffer_size] = '\0';
         if(strcmp(buffer, "Exit") == 0){
             break;
         }
         client_ip = inet_ntoa(client_addr.sin_addr);
         printf("Message from %s [ip %s, port %d]: %s\n", client->h_name, client_ip, client_addr.sin_port, buffer);
         check = check_input(buffer, number, string);
-        if(check != 1){
+        if(check != -1){
             send(conndf, (int *)&check, sizeof(check), 0);
             send(conndf, string, strlen(string), 0);
             send(conndf, number, strlen(number), 0);
         }else{
             printf("Message contains invalid character\n");
+            send(conndf, (int *)&check, sizeof(check), 0);
             send(conndf, error, strlen(error), 0);
         }
         if(strlen(buffer) == 0){
