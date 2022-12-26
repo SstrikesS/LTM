@@ -1,0 +1,12 @@
+thanhnt joins the server!
+hust joins the server!
+hust: hello
+thanhnt: hi
+thanhnt has left chat room!
+hust has left chat room!
+thanhnt joins the server!
+hust joins the server!
+hust: Hello
+thanhnt: Hi
+thanhnt has left chat room!
+hust has left chat room!

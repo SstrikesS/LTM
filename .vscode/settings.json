@@ -9,6 +9,8 @@
         "inet.h": "c",
         "unistd.h": "c",
         "errno.h": "c",
-        "strings.h": "c"
+        "strings.h": "c",
+        "linklist.h": "c",
+        "fcntl.h": "c"
     }
 }
