@@ -162,7 +162,7 @@ void watchFile(int connfd){// watch file in folder Week7
         while(i < length){ //
             struct inotify_event *event = (struct inotify_event *) &buffer[i];//gan event
             if(event->len){ //Neu co event
-                if(event->mask & IN_MODIFY){ 
+                if(event->mask & IN_MODIFY){
                     sendMess = getLastMess();// doc dong cuoi file groupchat.txt
                     printf("New mess: '%s' send to user %s\n", sendMess, CurrentUser->username);
                     send(connfd, sendMess, strlen(sendMess), 0);//gui cho client
@@ -190,17 +190,11 @@ void handle_mess(int connfd){// handle new message of income client
             bzero(sendmess, MAX_CHAR_OF_MESSAGE);
             buffer_size = recv(connfd, buffer, MAX_CHAR_OF_MESSAGE, 0);
             buffer[buffer_size] = '\0';
-
             //printf("Server of %s connfd %d : %s\n" , CurrentUser->username, connfd ,buffer);
-            
-            strcat(sendmess, CurrentUser->username);
-            strcat(sendmess, ": ");
-            strcat(sendmess, buffer);
-            SaveFile(sendmess); // save client message
-            printf("%s\n", sendmess);
             if(strcmp(buffer, "Exit") == 0){// Client exit
                 bzero(sendmess, MAX_CHAR_OF_MESSAGE);
                 strcpy(sendmess, "Bye");
+                sleep(1);// ngan chan viec gui string qua nhanh dan den client ko doc duoc
                 send(connfd, sendmess, strlen(sendmess), 0);
                 bzero(sendmess, MAX_CHAR_OF_MESSAGE);
                 strcat(sendmess, CurrentUser->username);
@@ -208,6 +202,12 @@ void handle_mess(int connfd){// handle new message of income client
                 SaveFile(sendmess); //save client exit message
                 break;
             }
+            strcat(sendmess, CurrentUser->username);
+            strcat(sendmess, ": ");
+            strcat(sendmess, buffer);
+            SaveFile(sendmess); // save client message
+            printf("%s\n", sendmess);
+
         }while(1);
     }
 }

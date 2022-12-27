@@ -107,11 +107,11 @@ int main(int argc, char const *argv[])  {
     signal(SIGCHLD, sig_child);
     if((pid = fork()) == 0){
         listenToServer();
-        printf("Client exit\n");
         close(sockfd);
         exit(0);
+    }else{
+        sendToServer();
+        close(sockfd);
     }
-    sendToServer();
-    close(sockfd);
     return 0;
 }
