@@ -294,7 +294,7 @@ void setupServer(int port){ //setup a server and handle fork server to client
         perror("Socket bind failed\n");
         exit(EXIT_FAILURE);
     }
-    printf("Server is now online...\n");
+    printf("Server is now online at port %d ...\n", port);
     if(listen(listenfd, MAX_OF_USERS_ONLINE) != 0){
         perror("Listen failed\n");
         exit(EXIT_FAILURE);
@@ -323,15 +323,14 @@ void setupServer(int port){ //setup a server and handle fork server to client
 }
 int main(int argc, char const *argv[]){
     int i;
+    int port = 5500;
     server_path = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     bzero(server_path, MAX_CHAR_OF_MESSAGE);
     fd = inotify_init();
-    if(argc < 2){
-        printf("Server creation failed! Need port number! Usage: %s [port_number]\n", argv[0]);
-        exit(EXIT_FAILURE);
+    if(argc == 2){
+        port = atoi(argv[1]);
     }
     server_path = "../Week7"; // folder can de xem file 'groupchat.txt'
-    int port = atoi(argv[1]);
     acc_list =  create_llist(NULL);
     CurrentUser = calloc(1, sizeof(User));
     readUser(acc_list);
