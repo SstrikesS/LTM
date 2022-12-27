@@ -70,7 +70,6 @@ void Login(const char *username, const char *password){// gui username/password 
     char *buffer = calloc(MAX, sizeof(char));
     bzero(buffer, MAX);
     int buffer_size, check;
-    int string_length = strlen(username);
     uint32_t un;
 
     send(sockfd, (char *)username, strlen(username), 0);

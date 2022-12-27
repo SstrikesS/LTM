@@ -2,21 +2,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <strings.h>
-
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
-
 #include <sys/inotify.h>
-
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
 #include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netdb.h>
-
 #include "linklist.h"
 
 #define MAX_OF_FILE 10000 //max character in file
@@ -24,12 +17,10 @@
 #define MAX_CHAR_OF_MESSAGE 10000 //max character in message 
 #define MAX_OF_USERS_ONLINE 100 // max users now are in server
 
-
 #define MAX_EVENTS 1024  /* Maximum number of events to process*/
 #define LEN_NAME 16  /* Assuming that the length of the filename won't exceed 16 bytes*/
 #define EVENT_SIZE  ( sizeof (struct inotify_event) ) /*size of one event*/
 #define BUF_LEN     ( MAX_EVENTS * ( EVENT_SIZE + LEN_NAME ))
-
 
 #define SUCCESS 2 //login success
 #define LOCK 1 //account is lock
@@ -41,7 +32,7 @@ typedef struct _User{// Acc already exist in server
     char password[MAX_CHAR_OF_MESSAGE];
     int loginfail; // count numbers of login failed
 }User;
-
+int currentline = 0;
 char *server_path; // path to server file (directory only)
 struct sockaddr_in server_addr, client_addr; 
 int listenfd, fd, wd; // listen file description, inotify instance, watch desciption
@@ -50,7 +41,7 @@ llist *acc_list; // List account read by taikhoan.txt
 User *CurrentUser; // Current user that fork server serves
 
 void sig_handler(int sig){
-    inotify_rm_watch(fd, wd);
+    inotify_rm_watch(fd, wd);// free wd,fd
     close(fd);
     exit(0);
 }
@@ -147,7 +138,7 @@ char * getLastMess(){ //get last message in file groupchat.txt
 }
 
 void watchFile(int connfd){// watch file in folder Week7
-    fd = inotify_init();// khoi tao inoti instance
+    fd = inotify_init();// khoi tao inotify instance
     wd = inotify_add_watch(fd, server_path, IN_MODIFY | IN_CREATE | IN_DELETE); // tao watch descriptor
     if(wd == -1){ // tao loi neu folder ko ton tai (Neu chon folder sai dan den watchFile se khong chay dung)
         printf("Invalid path\n");
@@ -173,6 +164,36 @@ void watchFile(int connfd){// watch file in folder Week7
     }
 }
 
+void checkFile(int connfd){
+    while(1){
+        sleep(1);
+        int i = 0;
+        char *line = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
+        char *line2 = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
+        bzero(line, MAX_CHAR_OF_MESSAGE);
+        FILE *pt = fopen("groupchat.txt", "r");
+        do{
+            bzero(line2, MAX_CHAR_OF_MESSAGE);
+            
+            strcpy(line2, line);
+            line2[strlen(line2)] = '\0';
+            bzero(line, MAX_CHAR_OF_MESSAGE);
+            fgets(line, MAX_CHAR_OF_MESSAGE, pt);
+            
+            i++;
+        }while(!feof(pt));
+        i--;
+        if(i == currentline)
+            continue;
+        if(i > currentline){
+            send(connfd, line2, strlen(line2) - 1, 0);
+            printf("line2 %s",line2);
+            currentline++;
+        }
+        fclose(pt);
+    }
+}
+
 void handle_mess(int connfd){// handle new message of income client
     char *buffer = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *sendmess = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
@@ -181,7 +202,8 @@ void handle_mess(int connfd){// handle new message of income client
     int buffer_size;
     signal(SIGCHLD, sig_child);
     if((pid = fork()) == 0){
-        watchFile(connfd);
+        //watchFile(connfd);
+        checkFile(connfd);
         close(connfd);
         exit(0);
     }else{
@@ -200,12 +222,14 @@ void handle_mess(int connfd){// handle new message of income client
                 strcat(sendmess, CurrentUser->username);
                 strcat(sendmess, " has left chat room!");
                 SaveFile(sendmess); //save client exit message
+                currentline++;
                 break;
             }
             strcat(sendmess, CurrentUser->username);
             strcat(sendmess, ": ");
             strcat(sendmess, buffer);
             SaveFile(sendmess); // save client message
+            currentline++;
             printf("%s\n", sendmess);
 
         }while(1);
@@ -218,7 +242,7 @@ int Login(int connfd){ // Login new client to server
     char *username = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *password = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *note = calloc(MAX_OF_FILE, sizeof(char));
-    int check,buffer_size, i, string_length;
+    int check,buffer_size, i;
     bzero(buffer, MAX_CHAR_OF_MESSAGE);
     bzero(sendMess, MAX_CHAR_OF_MESSAGE);
     bzero(username, MAX_CHAR_OF_MESSAGE);
@@ -254,6 +278,7 @@ int Login(int connfd){ // Login new client to server
         strcat(sendMess, username);
         strcat(sendMess, " joins the server!");
         SaveFile(sendMess);// notify new client to groupchat
+        currentline++;
         printf("%s\n", sendMess);
 
         return SUCCESS;
@@ -296,7 +321,7 @@ void setupServer(int port){ //setup a server and handle fork server to client
             }
         }
         check = Login(connfd);// login client
-        if(check != LOCK && check != FAIL){// when success
+        if(check == SUCCESS){// when success
             if((pid = fork()) == 0){// create new fork server
                 close(listenfd);
                 handle_mess(connfd);
@@ -310,6 +335,14 @@ int main(int argc, char const *argv[]){
     int i;
     int port = 5500;
     server_path = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
+    char *line = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
+    FILE *pt = fopen("groupchat.txt", "r");
+    do{
+        fgets(line, MAX_CHAR_OF_MESSAGE, pt);
+        currentline++;
+    }while(!feof(pt));
+    currentline--;
+    fclose(pt);
     bzero(server_path, MAX_CHAR_OF_MESSAGE);
     fd = inotify_init();
     if(argc == 2){
