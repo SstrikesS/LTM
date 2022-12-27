@@ -26,8 +26,7 @@
 
 
 #define MAX_EVENTS 1024  /* Maximum number of events to process*/
-#define LEN_NAME 16  /* Assuming that the length of the filename
-won't exceed 16 bytes*/
+#define LEN_NAME 16  /* Assuming that the length of the filename won't exceed 16 bytes*/
 #define EVENT_SIZE  ( sizeof (struct inotify_event) ) /*size of one event*/
 #define BUF_LEN     ( MAX_EVENTS * ( EVENT_SIZE + LEN_NAME ))
 
@@ -146,32 +145,34 @@ char * getLastMess(){ //get last message in file groupchat.txt
     fclose(pt);
     return str;
 }
-void watchFile(int connfd){
-    fd = inotify_init();
-    wd = inotify_add_watch(fd, server_path, IN_MODIFY | IN_CREATE | IN_DELETE);
-    if(wd == -1){
+
+void watchFile(int connfd){// watch file in folder Week7
+    fd = inotify_init();// khoi tao inoti instance
+    wd = inotify_add_watch(fd, server_path, IN_MODIFY | IN_CREATE | IN_DELETE); // tao watch descriptor
+    if(wd == -1){ // tao loi neu folder ko ton tai (Neu chon folder sai dan den watchFile se khong chay dung)
         printf("Invalid path\n");
         exit(0);
     }
     char *sendMess = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
-    signal(SIGINT, sig_handler);
+    signal(SIGINT, sig_handler); // tin hieu ket thuc watchFile (debug)
     while(1){
-        char buffer[BUF_LEN];
+        char buffer[BUF_LEN]; //string chua noi dung doc
         int i = 0, length;
-        length = read(fd,buffer,BUF_LEN);
-        while(i < length){
-            struct inotify_event *event = (struct inotify_event *) &buffer[i];
-            if(event->len){
-                if(event->mask & IN_MODIFY){
-                    sendMess = getLastMess();
-                    printf("New mess: %s send to connfd %d user %s\n", sendMess, connfd, CurrentUser->username);
-                    send(connfd, sendMess, strlen(sendMess), 0);
+        length = read(fd, buffer, BUF_LEN);// doc buffer
+        while(i < length){ //
+            struct inotify_event *event = (struct inotify_event *) &buffer[i];//gan event
+            if(event->len){ //Neu co event
+                if(event->mask & IN_MODIFY){ 
+                    sendMess = getLastMess();// doc dong cuoi file groupchat.txt
+                    printf("New mess: '%s' send to user %s\n", sendMess, CurrentUser->username);
+                    send(connfd, sendMess, strlen(sendMess), 0);//gui cho client
                 }
             }
             i += EVENT_SIZE + event->len;
         }
     }
 }
+
 void handle_mess(int connfd){// handle new message of income client
     char *buffer = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *sendmess = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
@@ -329,7 +330,7 @@ int main(int argc, char const *argv[]){
         printf("Server creation failed! Need port number! Usage: %s [port_number]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    server_path = "../Week7";
+    server_path = "../Week7"; // folder can de xem file 'groupchat.txt'
     int port = atoi(argv[1]);
     acc_list =  create_llist(NULL);
     CurrentUser = calloc(1, sizeof(User));

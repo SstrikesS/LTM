@@ -17,8 +17,6 @@
 #define LOCK 1 //account is lock
 #define FAIL 0 //login fail
 
-
-
 int sockfd;
 struct sockaddr_in server_addr;
  

@@ -10,3 +10,9 @@ hust: Hello
 thanhnt: Hi
 thanhnt has left chat room!
 hust has left chat room!
+hust joins the server!
+thanhnt joins the server!
+thanhnt: Exit
+thanhnt has left chat room!
+hust: Exit
+hust has left chat room!
