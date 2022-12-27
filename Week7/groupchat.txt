@@ -10,46 +10,17 @@ hust: Hello
 thanhnt: Hi
 thanhnt has left chat room!
 hust has left chat room!
-
-hust joins the server!
-thanhnt joins the server!
-soict joins the server!
-hust: hi there
-thanhnt has left chat room!
-soict has left chat room!
-hust has left chat room!
-hust joins the server!
-thanhnt joins the server!
-soict joins the server!
-hust: hello
-hust: hi
-thanhnt: thanhnt
-soict: yes
-soict has left chat room!
-thanhnt has left chat room!
-hust has left chat room!
 hust joins the server!
 thanhnt joins the server!
 soict joins the server!
 hust: hello
 thanhnt: hi
-hust: thanks
 hust has left chat room!
 thanhnt has left chat room!
 soict has left chat room!
 hust joins the server!
-hust: hello
-thanhnt joins the server!
-soict joins the server!
-soict: hi
 hust has left chat room!
-thanhnt has left chat room!
-soict has left chat room!
 hust joins the server!
-soict joins the server!
-thanhnt joins the server!
-thanhnt: hello
-hust: hi
 hust has left chat room!
-thanhnt has left chat room!
-soict has left chat room!
+hust joins the server!
+hust has left chat room!

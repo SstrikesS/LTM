@@ -225,25 +225,10 @@ int Login(int connfd){ // Login new client to server
     bzero(password, MAX_CHAR_OF_MESSAGE);
     uint32_t un;
 
-    buffer_size = recv(connfd, (uint32_t *)&un, sizeof(uint32_t), 0);
-    string_length = ntohl(un); // return strlen(username)
-    buffer_size = recv(connfd, (char *)buffer, MAX_CHAR_OF_MESSAGE, 0);
+    buffer_size = recv(connfd, (char *)username, MAX_CHAR_OF_MESSAGE, 0);
     buffer[buffer_size] = '\0';// return username + password
-
-    if(string_length == -1){
-        perror("Error packet return!");
-        exit(EXIT_FAILURE);
-    }else{
-        for(i = 0; i < buffer_size; i++){ // split buffer to username and password
-            if(i < string_length){
-                username[i] = buffer[i]; 
-            }else{
-                password[i - string_length] = buffer[i]; 
-            }
-        }
-        password[buffer_size - string_length] = '\0';
-        username[string_length] = '\0';
-    }
+    buffer_size = recv(connfd, (char *)password, MAX_CHAR_OF_MESSAGE, 0);
+    buffer[buffer_size] = '\0';// return username + password
 
     check = checkLogin(username, password); // check valid account
 

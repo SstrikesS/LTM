@@ -12,7 +12,6 @@
 #include <signal.h>
 
 #define MAX 10000
-
 #define SUCCESS 2 //login success
 #define LOCK 1 //account is lock
 #define FAIL 0 //login fail
@@ -42,7 +41,7 @@ void setupClient(const char *ip, int port){
         exit(EXIT_FAILURE);
     }
 }
-void listenToServer(){
+void listenToServer(){// ham nghe tu server
     char *buffer = calloc(MAX, sizeof(char));
     int buffer_size;
     do{
@@ -55,7 +54,7 @@ void listenToServer(){
     }while(1);
 }
 
-void sendToServer(){
+void sendToServer(){// ham gui cho server
     char *message = calloc(MAX, sizeof(char));
     int buffer_size;
     do{
@@ -67,14 +66,15 @@ void sendToServer(){
     }while (strcmp(message, "Exit") != 0);
 }
 
-void Login(const char *username, const char *password){
+void Login(const char *username, const char *password){// gui username/password den server
     char *buffer = calloc(MAX, sizeof(char));
     bzero(buffer, MAX);
     int buffer_size, check;
     int string_length = strlen(username);
-    uint32_t un = htonl(string_length);
-    send(sockfd, (uint32_t *)&un, sizeof(uint32_t), 0);
+    uint32_t un;
+
     send(sockfd, (char *)username, strlen(username), 0);
+    sleep(1); // ngan viec gui qua nhanh khien server ko doc duoc
     send(sockfd, (char *)password, strlen(password), 0);
 
     buffer_size = recv(sockfd, (uint32_t *)&un, sizeof(uint32_t), 0);
@@ -94,7 +94,7 @@ void Login(const char *username, const char *password){
     }
 }
 
-int main(int argc, char const *argv[])  {
+int main(int argc, char const *argv[]){
     pid_t pid;
     int stat;
     if(argc < 5){
@@ -105,12 +105,12 @@ int main(int argc, char const *argv[])  {
     setupClient(argv[1], port);
     Login(argv[3], argv[4]);
     signal(SIGCHLD, sig_child);
-    if((pid = fork()) == 0){
+    if((pid = fork()) == 0){ // tao client con chi de nghe server
         listenToServer();
         close(sockfd);
         exit(0);
     }else{
-        sendToServer();
+        sendToServer(); // client chinh se chi doc message tu server
         close(sockfd);
     }
     return 0;
