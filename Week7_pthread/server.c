@@ -104,22 +104,6 @@ int checkLogin(char *username, char *password, User *current_user){ // Check val
     return FAIL;
 }
 
-char * getLastMess(){ //get last message in file groupchat.txt
-    FILE *pt = fopen("groupchat.txt", "r");
-    char *str = calloc(MAX_OF_FILE, sizeof(char));
-    char *buffer = calloc(MAX_OF_FILE, sizeof(char));
-    bzero(str, MAX_OF_FILE);
-    bzero(buffer, MAX_OF_FILE);
-    do{
-        bzero(str, MAX_OF_FILE);
-        strcpy(str, buffer);
-        bzero(buffer, MAX_OF_FILE);
-        fgets(buffer, MAX_OF_FILE, pt);
-    }while(strlen(buffer) != 0);
-    str[strlen(str) - 1] = '\0';
-    fclose(pt);
-    return str;
-}
 
 int Login(int connfd){ // Login new client to server
     char *buffer = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
