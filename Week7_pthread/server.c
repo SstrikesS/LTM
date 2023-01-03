@@ -3,24 +3,16 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
-#include <errno.h>
-#include <signal.h>
-#include <sys/inotify.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <arpa/inet.h>
 #include "linklist.h"
+#include <pthread.h>
 
 #define MAX_OF_FILE 10000 //max character in file
 #define MAX_ACC_IN_SERVER 100  // max account in taikhoan.txt
 #define MAX_CHAR_OF_MESSAGE 10000 //max character in message 
 #define MAX_OF_USERS_ONLINE 100 // max users now are in server
-
-#define MAX_EVENTS 1024  /* Maximum number of events to process*/
-#define LEN_NAME 16  /* Assuming that the length of the filename won't exceed 16 bytes*/
-#define EVENT_SIZE  ( sizeof (struct inotify_event) ) /*size of one event*/
-#define BUF_LEN     ( MAX_EVENTS * ( EVENT_SIZE + LEN_NAME ))
 
 #define SUCCESS 2 //login success
 #define LOCK 1 //account is lock
@@ -33,27 +25,16 @@ typedef struct _User{// Acc already exist in server
     int loginfail; // count numbers of login failed
 }User;
 
-int currentline = 0;
-char *server_path; // path to server file (directory only)
+typedef struct _Client{
+    int connfd;
+    User *user;
+}Client;
+
 struct sockaddr_in server_addr, client_addr; 
-int listenfd, fd, wd; // listen file description, inotify instance, watch desciption
-pid_t pid; // process id
+int listenfd; //listen socket file description
+pthread_t pid; // thread id
 llist *acc_list; // List account read by taikhoan.txt
-User *CurrentUser; // Current user that fork server serves
-
-void sig_handler(int sig){
-    inotify_rm_watch(fd, wd);// free wd,fd
-    close(fd);
-    exit(0);
-}
-
-void sig_child(int signo){
-    pid_t pid;
-    int stat;
-    while((pid = waitpid(-1, &stat, WNOHANG)) > 0){
-        printf("Process %d terminated\n", pid);
-    }
-}
+Client *cli_list;
 
 void SaveFile(char *string){ // Save message into file groupchat.txt
     FILE *pt = fopen("groupchat.txt", "a+");
@@ -100,7 +81,7 @@ void readUser(){ // Read account from file account.txt
     fclose(pt);
 }
 
-int checkLogin(char *username, char *password){ // Check valid login of income client, return FAIL if wrong password, return LOCK if account has been lock
+int checkLogin(char *username, char *password, User *current_user){ // Check valid login of income client, return FAIL if wrong password, return LOCK if account has been lock
     int i;
     struct node *current;
     current = *acc_list;
@@ -108,6 +89,8 @@ int checkLogin(char *username, char *password){ // Check valid login of income c
         User *tmp = (User *)current->data;
         if(strcmp(tmp->username, username) == 0){
             if(strcmp(tmp->password, password) == 0 && tmp->status != 0){
+                strcpy(current_user->username, tmp->username);
+                strcpy(current_user->password, tmp->password);
                 return SUCCESS;
             }else{
                 if(tmp->status == 0){
@@ -138,111 +121,13 @@ char * getLastMess(){ //get last message in file groupchat.txt
     return str;
 }
 
-void watchFile(int connfd){// watch file in folder Week7
-    fd = inotify_init();// khoi tao inotify instance
-    wd = inotify_add_watch(fd, server_path, IN_MODIFY | IN_CREATE | IN_DELETE); // tao watch descriptor
-    if(wd == -1){ // tao loi neu folder ko ton tai (Neu chon folder sai dan den watchFile se khong chay dung)
-        printf("Invalid path\n");
-        exit(0);
-    }
-    char *sendMess = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
-    signal(SIGINT, sig_handler); // tin hieu ket thuc watchFile (debug)
-    while(1){
-        char buffer[BUF_LEN]; //string chua noi dung doc
-        int i = 0, length;
-        length = read(fd, buffer, BUF_LEN);// doc buffer
-        while(i < length){ //
-            struct inotify_event *event = (struct inotify_event *) &buffer[i];//gan event
-            if(event->len){ //Neu co event
-                if(event->mask & IN_MODIFY){
-                    sendMess = getLastMess();// doc dong cuoi file groupchat.txt
-                    printf("New mess: '%s' send to user %s\n", sendMess, CurrentUser->username);
-                    send(connfd, sendMess, strlen(sendMess), 0);//gui cho client
-                }
-            }
-            i += EVENT_SIZE + event->len;
-        }
-    }
-}
-
-void checkFile(int connfd){
-    while(1){
-        sleep(1);
-        int i = 0;
-        char *line = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
-        char *line2 = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
-        bzero(line, MAX_CHAR_OF_MESSAGE);
-        FILE *pt = fopen("groupchat.txt", "r");
-        do{
-            bzero(line2, MAX_CHAR_OF_MESSAGE);
-            
-            strcpy(line2, line);
-            line2[strlen(line2)] = '\0';
-            bzero(line, MAX_CHAR_OF_MESSAGE);
-            fgets(line, MAX_CHAR_OF_MESSAGE, pt);
-            
-            i++;
-        }while(!feof(pt));
-        i--;
-        if(i == currentline)
-            continue;
-        if(i > currentline){
-            send(connfd, line2, strlen(line2) - 1, 0);
-            printf("line2 %s",line2);
-            currentline++;
-        }
-        fclose(pt);
-    }
-}
-
-void handle_mess(int connfd){// handle new message of income client
-    char *buffer = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
-    char *sendmess = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
-    bzero(buffer, MAX_CHAR_OF_MESSAGE);
-    bzero(sendmess, MAX_CHAR_OF_MESSAGE);
-    int buffer_size;
-    signal(SIGCHLD, sig_child);
-    if((pid = fork()) == 0){
-        //watchFile(connfd);
-        checkFile(connfd);
-        close(connfd);
-        exit(0);
-    }else{
-        do{
-            bzero(buffer, MAX_CHAR_OF_MESSAGE);
-            bzero(sendmess, MAX_CHAR_OF_MESSAGE);
-            buffer_size = recv(connfd, buffer, MAX_CHAR_OF_MESSAGE, 0);
-            buffer[buffer_size] = '\0';
-            //printf("Server of %s connfd %d : %s\n" , CurrentUser->username, connfd ,buffer);
-            if(strcmp(buffer, "Exit") == 0){// Client exit
-                bzero(sendmess, MAX_CHAR_OF_MESSAGE);
-                strcpy(sendmess, "Bye");
-                sleep(1);// ngan chan viec gui string qua nhanh dan den client ko doc duoc
-                send(connfd, sendmess, strlen(sendmess), 0);
-                bzero(sendmess, MAX_CHAR_OF_MESSAGE);
-                strcat(sendmess, CurrentUser->username);
-                strcat(sendmess, " has left chat room!");
-                SaveFile(sendmess); //save client exit message
-                currentline++;
-                break;
-            }
-            strcat(sendmess, CurrentUser->username);
-            strcat(sendmess, ": ");
-            strcat(sendmess, buffer);
-            SaveFile(sendmess); // save client message
-            currentline++;
-            printf("%s\n", sendmess);
-
-        }while(1);
-    }
-}
-
 int Login(int connfd){ // Login new client to server
     char *buffer = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *sendMess = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *username = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *password = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *note = calloc(MAX_OF_FILE, sizeof(char));
+    User *current_user = calloc(1, sizeof(User));
     int check,buffer_size, i;
     bzero(buffer, MAX_CHAR_OF_MESSAGE);
     bzero(sendMess, MAX_CHAR_OF_MESSAGE);
@@ -255,8 +140,7 @@ int Login(int connfd){ // Login new client to server
     buffer_size = recv(connfd, (char *)password, MAX_CHAR_OF_MESSAGE, 0);
     buffer[buffer_size] = '\0';// return username + password
 
-    check = checkLogin(username, password); // check valid account
-
+    check = checkLogin(username, password, current_user); // check valid account
     if(check == FAIL){
         uint32_t un = htonl(FAIL);
         send(connfd, (uint32_t *)&un, sizeof(uint32_t), 0); // send FAIL to client
@@ -265,21 +149,32 @@ int Login(int connfd){ // Login new client to server
     }else if(check == SUCCESS){
         uint32_t un = htonl(SUCCESS); // send SUCCESS to client
         send(connfd, (uint32_t *)&un, sizeof(uint32_t), 0);
-        bzero(CurrentUser->username, MAX_CHAR_OF_MESSAGE);
-        bzero(CurrentUser->password, MAX_CHAR_OF_MESSAGE);
-
-        strcpy(CurrentUser->username, username); // set current user 
-        strcpy(CurrentUser->password, password);
-        printf("User %s connfd %d\n", CurrentUser->username, connfd);
+        for(i = 0; i < MAX_OF_USERS_ONLINE; i++){
+            if(cli_list[i].connfd < 0){
+                cli_list[i].connfd = connfd;
+                strcpy(cli_list[i].user->username, current_user->username);
+                strcpy(cli_list[i].user->password, current_user->password);
+                break;
+            }
+        }
         bzero(note, MAX_OF_FILE);
         note = getSaveFile(); // get previous groupchat
         note[strlen(note)] = '\0';
-        send(connfd, note, strlen(note), 0);
+        if(strlen(note) != 0){
+            send(connfd, note, strlen(note), 0);
+        }else{
+            strcpy(note, "NULL");
+            send(connfd, note, strlen(note), 0);
+        }
 
         strcat(sendMess, username);
         strcat(sendMess, " joins the server!");
         SaveFile(sendMess);// notify new client to groupchat
-        currentline++;
+        for(i = 0; i < MAX_OF_USERS_ONLINE; i++){
+            if(cli_list[i].connfd > 0 && cli_list[i].connfd != connfd){
+                send(cli_list[i].connfd, sendMess, strlen(sendMess), 0);
+            }
+        }
         printf("%s\n", sendMess);
 
         return SUCCESS;
@@ -290,9 +185,63 @@ int Login(int connfd){ // Login new client to server
         return LOCK;
     }
 }
+
+void *handle_chat(void * id){
+    char *buffer = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
+    char *message = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
+    int buffer_size, i, list_id;
+    list_id = *((int *)id);
+    pthread_detach(pthread_self());
+    do{
+        bzero(buffer, MAX_CHAR_OF_MESSAGE);
+        buffer_size = recv(cli_list[list_id].connfd, buffer, MAX_CHAR_OF_MESSAGE, 0);
+        if(strcmp(buffer, "Exit") == 0){
+
+            bzero(message, MAX_CHAR_OF_MESSAGE);
+            strcpy(message, "Bye");
+            message[strlen(message)] = '\0';
+            send(cli_list[list_id].connfd, message, strlen(buffer), 0);
+
+            bzero(message, MAX_CHAR_OF_MESSAGE);
+            strcat(message, cli_list[list_id].user->username);
+            strcat(message, " has left the server!");
+            message[strlen(message)] = '\0';
+            printf("%s\n", message);
+            SaveFile(message);
+
+            cli_list[list_id].connfd = -1;
+            bzero(cli_list[list_id].user->password, MAX_CHAR_OF_MESSAGE);
+            bzero(cli_list[list_id].user->username, MAX_CHAR_OF_MESSAGE);
+            for(i = 0; i < MAX_OF_USERS_ONLINE; i++){
+                if(cli_list[i].connfd > 0 && cli_list[i].connfd != cli_list[list_id].connfd){
+                    send(cli_list[i].connfd, message, strlen(message), 0);
+                }
+            }
+            break;
+        }else{
+            bzero(message, MAX_CHAR_OF_MESSAGE);
+            strcat(message, cli_list[list_id].user->username);
+            strcat(message, ": ");
+            strcat(message, buffer);
+            message[strlen(message)] = '\0';
+            printf("%s\n", message);
+            SaveFile(message);
+            for(i = 0; i < MAX_OF_USERS_ONLINE; i++){
+                if(cli_list[i].connfd > 0 && cli_list[i].connfd != cli_list[list_id].connfd){
+                    send(cli_list[i].connfd, message, strlen(message), 0);
+                }
+                
+            }
+        }
+    }while(1);
+    close(cli_list[list_id].connfd);
+
+}
+
 void setupServer(int port){ //setup a server and handle fork server to client
     unsigned int length = sizeof(client_addr);
     int connfd, i, check;
+    int *arg;
     if((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
         perror("Socket creation failed\n");
         exit(EXIT_FAILURE);
@@ -310,48 +259,37 @@ void setupServer(int port){ //setup a server and handle fork server to client
         perror("Listen failed\n");
         exit(EXIT_FAILURE);
     }
-    signal(SIGCHLD, sig_child);
     while(1){
         connfd = accept(listenfd, (struct sockaddr *)&client_addr, &length);
         if(connfd < 0){
-            if(errno == EINTR){
-                continue;
-            }else{
-                perror("Server accept failed\n");
-                exit(EXIT_FAILURE);
-            }
+            perror("Server accept failed\n");
+            exit(EXIT_FAILURE);
         }
         check = Login(connfd);// login client
         if(check == SUCCESS){// when success
-            if((pid = fork()) == 0){// create new fork server
-                close(listenfd);
-                handle_mess(connfd);
-                close(connfd);
-                exit(0);
+            for(i = 0; i < MAX_OF_USERS_ONLINE; i++){
+                if(cli_list[i].connfd == connfd){
+                    arg = &i;
+                    break;
+                }
             }
+            pthread_create(&pid, NULL, &handle_chat, (int *)arg);
         }
     }
 }
 int main(int argc, char const *argv[]){
     int i;
     int port = 5500;
-    server_path = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
     char *line = calloc(MAX_CHAR_OF_MESSAGE, sizeof(char));
-    FILE *pt = fopen("groupchat.txt", "r");
-    do{
-        fgets(line, MAX_CHAR_OF_MESSAGE, pt);
-        currentline++;
-    }while(!feof(pt));
-    currentline--;
-    fclose(pt);
-    bzero(server_path, MAX_CHAR_OF_MESSAGE);
-    fd = inotify_init();
     if(argc == 2){
         port = atoi(argv[1]);
     }
-    server_path = "../Week7"; // folder can de xem file 'groupchat.txt'
     acc_list =  create_llist(NULL);
-    CurrentUser = calloc(1, sizeof(User));
+    cli_list = calloc(MAX_OF_USERS_ONLINE, sizeof(Client));
+    for(i = 0 ; i < MAX_OF_USERS_ONLINE; i++){
+        cli_list[i].connfd = -1;
+        cli_list[i].user = calloc(1, sizeof(User));
+    }
     readUser(acc_list);
     setupServer(port);
     close(listenfd);
