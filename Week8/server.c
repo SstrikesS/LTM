@@ -7,17 +7,16 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <netdb.h>
+
 #include <unistd.h>
 #include <pthread.h>
 
 #define MAX 1000
-struct sockaddr_in server_addr, client_addr;
-struct hostent *host;
-int listenfd;
-int cur = 0;
+struct sockaddr_in server_addr, client_addr; // MAX OF CHARACTER OF MESSAGE
+int listenfd; // listen socket
+int cur = 0;// number of client sended data to server
 
-void *SaveClientInfo(void *arg){
+void *SaveClientInfo(void *arg){// handle client message
     pthread_detach(pthread_self());
     char *buffer = calloc(MAX, sizeof(char));
     char *message = calloc(MAX, sizeof(char));
@@ -27,19 +26,24 @@ void *SaveClientInfo(void *arg){
     char *tmp = calloc(MAX, sizeof(char));
     char **token = calloc(4, sizeof(char *));
     int i;
-    int current = cur;
+    int current = cur; // get current client counter
+
     for(i = 0; i < 4; i++){
         token[i] = calloc(MAX, sizeof(char));
     }
+    
     int buffer_size;
-    int connfd = *((int *)arg);
+    int connfd = *((int *)arg); // get current client socket
+
+    //get current filename to save 
     sprintf(number, "%d", current);
     strcat(filename, "Log");
     strcat(filename, number);
     strcat(filename, ".txt");
     sprintf(port, "%d", client_addr.sin_port);
-    //printf("Client %d, ip %s port %d \n", current, inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
+
     while(1){
+        // get client ip and port
         bzero(buffer, MAX);
         bzero(message, MAX);
         strcat(buffer, "Client ");
@@ -50,13 +54,17 @@ void *SaveClientInfo(void *arg){
         strcat(buffer, port);
         buffer[strlen(buffer)] = '\0';
         
+        //get client message
         buffer_size = recv(connfd, message, MAX, 0);
         buffer[buffer_size]= '\0';
-        if(strcmp(message, "Exit") == 0){
-            cur++;
-            close(connfd);
+
+        if(strcmp(message, "Exit") == 0){ // Exit message
+            cur++; // serve next client request
+            close(connfd); // close socket of current client
             break;
         }else{
+            // get information from client message
+            // split message into token string array and remove '|'
             tmp = strtok(message, "|");
             strcpy(token[0], tmp);
             i = 1;
@@ -69,6 +77,8 @@ void *SaveClientInfo(void *arg){
                     break;
                 }
             }
+
+            //copy information to buffer
             strcat(buffer, "\nSystem is ");
             strcat(buffer, token[0]);
             strcat(buffer, " on ");
@@ -79,8 +89,8 @@ void *SaveClientInfo(void *arg){
             strcat(buffer, token[3]);
             buffer[strlen(buffer)] = '\0';
 
-            FILE *pt = fopen(filename, "w+");
-            fputs(buffer, pt);
+            FILE *pt = fopen(filename, "w+");// open save filename of current client
+            fputs(buffer, pt); // write buffer to file log name
             printf("Save information of Client %s suceessfully!\n", number);
             fclose(pt);
         }
@@ -90,12 +100,13 @@ void *SaveClientInfo(void *arg){
 
 void setupServer(int port){ //setup a server
     unsigned int length = sizeof(client_addr);
-    int connfd;
-    pthread_t tid;
-    if((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
+    int connfd; // connect socket of each client
+    pthread_t tid; // thread id
+    if((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1){// listen socket
         perror("Socket creation failed\n");
         exit(EXIT_FAILURE);
     }
+    //bind server
     bzero(&server_addr, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
@@ -105,18 +116,18 @@ void setupServer(int port){ //setup a server
         exit(EXIT_FAILURE);
     }
     printf("Server is now online...\n");
-    if(listen(listenfd, 100) != 0){
+    if(listen(listenfd, 100) != 0){// listen request of client
         perror("Listen failed\n");
         exit(EXIT_FAILURE);
     }
     while(1){
-        connfd = accept(listenfd, (struct sockaddr *)&client_addr, &length);
+        connfd = accept(listenfd, (struct sockaddr *)&client_addr, &length); // accept client request
         if(connfd < 0){
             perror("Server accept failed\n");
             exit(EXIT_FAILURE);
         }else{
-            int *arg = &connfd;
-            cur++;
+            int *arg = &connfd; // get connect socket
+            cur++; //increase client's counter
             pthread_create(&tid, NULL, &SaveClientInfo, (int *)arg);
         }
     }

@@ -1,0 +1,6 @@
+Client 1
+IP Address is: 127.0.0.1
+Port is: 19603
+System is Linux on x86_64
+OS Release is 5.15.0-56-generic
+OS version is #62~20.04.1-Ubuntu SMP Tue Nov 22 21:24:20 UTC 2022
